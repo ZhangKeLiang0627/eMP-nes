@@ -1,0 +1,6 @@
+[submodule "libs/lvgl"]
+	path = libs/lvgl
+	url = https://github.com/lvgl/lvgl.git
+[submodule "libs/simplenes"]
+	path = libs/simplenes
+	url = https://github.com/amhndu/SimpleNES.git

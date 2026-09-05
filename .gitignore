@@ -1,0 +1,6 @@
+# build / artifact
+build/
+*.o
+*.a
+*.so
+*.so.*
