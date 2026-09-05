@@ -453,7 +453,10 @@ Overlay * overlay_create(lv_obj_t * root, const char * title,
     lv_obj_t * tlabel = lv_label_create(bar);
     lv_obj_set_style_text_font(tlabel, ovl_font(20), 0);
     lv_obj_set_style_text_color(tlabel, lv_color_hex(0x555555), 0);
+    /* LONG_DOT clips overlong titles; text_align CENTER keeps short titles
+     * (e.g. "NES CONSOLE") truly centered within the reserved width. */
     lv_label_set_long_mode(tlabel, LV_LABEL_LONG_DOT);
+    lv_obj_set_style_text_align(tlabel, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(tlabel, title);
     lv_obj_set_width(tlabel, bar_w - 200);
     lv_obj_align(tlabel, LV_ALIGN_CENTER, 0, 0);
@@ -531,6 +534,29 @@ lv_obj_t * mkPadButton(lv_obj_t * parent, const char * text, lv_color_t color,
     lv_obj_add_event_cb(btn, padEventCb, LV_EVENT_RELEASED, (void *)(intptr_t)key);
     lv_obj_add_event_cb(btn, padEventCb, LV_EVENT_PRESS_LOST, (void *)(intptr_t)key);
     return btn;
+}
+
+/* Small translucent chip (START/SEL), same press wiring as the pad keys. */
+lv_obj_t * mkChip(lv_obj_t * parent, const char * text, int x, int y, int w, int h, int key)
+{
+    lv_obj_t * chip = lv_button_create(parent);
+    lv_obj_set_pos(chip, x, y);
+    lv_obj_set_size(chip, w, h);
+    lv_obj_set_style_bg_color(chip, lv_color_hex(0x303030), 0);
+    lv_obj_set_style_bg_opa(chip, LV_OPA_60, 0);
+    lv_obj_set_style_radius(chip, 6, 0);
+    lv_obj_set_style_border_width(chip, 0, 0);
+    lv_obj_set_style_bg_color(chip, lv_color_hex(0x506070), LV_STATE_PRESSED);
+    lv_obj_add_event_cb(chip, padEventCb, LV_EVENT_PRESSED, (void *)(intptr_t)key);
+    lv_obj_add_event_cb(chip, padEventCb, LV_EVENT_RELEASED, (void *)(intptr_t)key);
+    lv_obj_add_event_cb(chip, padEventCb, LV_EVENT_PRESS_LOST, (void *)(intptr_t)key);
+
+    lv_obj_t * lab = lv_label_create(chip);
+    lv_label_set_text(lab, text);
+    lv_obj_set_style_text_color(lab, lv_color_white(), 0);
+    lv_obj_set_style_text_font(lab, &lv_font_montserrat_14, 0);
+    lv_obj_center(lab);
+    return chip;
 }
 
 /* ROM selection holders (single menu instance per app). */
@@ -648,38 +674,10 @@ void View::showGame(const std::string & romPath, KeyCb keyCb, GameExitCb gameExi
     mkPadButton(scr, "B", lv_color_hex(0x884422), 320, 389, 62, 46, BTN_B);
     mkPadButton(scr, "A", lv_color_hex(0x224488), 388, 389, 62, 46, BTN_A);
 
-    /* START / SELECT: small translucent chips in the centre gap */
-    lv_obj_t * sta = lv_button_create(scr);
-    lv_obj_set_pos(sta, 238, 362);
-    lv_obj_set_size(sta, 68, 28);
-    lv_obj_set_style_bg_color(sta, lv_color_hex(0x303030), 0);
-    lv_obj_set_style_bg_opa(sta, LV_OPA_60, 0);
-    lv_obj_set_style_radius(sta, 6, 0);
-    lv_obj_set_style_border_width(sta, 0, 0);
-    lv_obj_add_event_cb(sta, padEventCb, LV_EVENT_PRESSED, (void *)(intptr_t)BTN_START);
-    lv_obj_add_event_cb(sta, padEventCb, LV_EVENT_RELEASED, (void *)(intptr_t)BTN_START);
-    lv_obj_add_event_cb(sta, padEventCb, LV_EVENT_PRESS_LOST, (void *)(intptr_t)BTN_START);
-    lv_obj_t * sta_l = lv_label_create(sta);
-    lv_label_set_text(sta_l, "START");
-    lv_obj_set_style_text_color(sta_l, lv_color_white(), 0);
-    lv_obj_set_style_text_font(sta_l, &lv_font_montserrat_14, 0);
-    lv_obj_center(sta_l);
-
-    lv_obj_t * sel = lv_button_create(scr);
-    lv_obj_set_pos(sel, 238, 402);
-    lv_obj_set_size(sel, 68, 28);
-    lv_obj_set_style_bg_color(sel, lv_color_hex(0x303030), 0);
-    lv_obj_set_style_bg_opa(sel, LV_OPA_60, 0);
-    lv_obj_set_style_radius(sel, 6, 0);
-    lv_obj_set_style_border_width(sel, 0, 0);
-    lv_obj_add_event_cb(sel, padEventCb, LV_EVENT_PRESSED, (void *)(intptr_t)BTN_SELECT);
-    lv_obj_add_event_cb(sel, padEventCb, LV_EVENT_RELEASED, (void *)(intptr_t)BTN_SELECT);
-    lv_obj_add_event_cb(sel, padEventCb, LV_EVENT_PRESS_LOST, (void *)(intptr_t)BTN_SELECT);
-    lv_obj_t * sel_l = lv_label_create(sel);
-    lv_label_set_text(sel_l, "SEL");
-    lv_obj_set_style_text_color(sel_l, lv_color_white(), 0);
-    lv_obj_set_style_text_font(sel_l, &lv_font_montserrat_14, 0);
-    lv_obj_center(sel_l);
+    /* START / SELECT: one horizontal row directly BELOW B/A, sharing the
+     * same column x-offsets (aligned with the B/A pair). */
+    mkChip(scr, "START", 320, 438, 62, 26, BTN_START);
+    mkChip(scr, "SEL", 388, 438, 62, 26, BTN_SELECT);
 
     /* ---- gesture overlays: top bar hidden, volume bar hidden,
      * swipe-down/left reveal them; 退出 -> back to menu ---- */
