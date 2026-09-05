@@ -7,7 +7,7 @@
  *   touch point. Per LVGL's own docs, multi-touch is done by creating several
  *   POINTER indevs, each reporting a different touch slot. This module does
  *   exactly that: it opens /dev/input/event1 once per indev, parses the kernel
- *   MT event stream, and hands slot N to indev N. The on-screen virtual GBA
+ *   MT event stream, and hands slot N to indev N. The on-screen virtual pad
  *   buttons (lv_btn) are then pressable by independent fingers, so e.g.
  *   "Up + A" or "L + R" can be held simultaneously.
  *
@@ -51,7 +51,7 @@ extern "C" {
 }
 
 /* Number of simultaneous touch points exposed to LVGL (one POINTER indev
- * each). Bump this if the panel and use-case need more (the GBA pad rarely
+ * each). Bump this if the panel and use-case need more (the pad rarely
  * needs more than 2-3 held at once, but 2 satisfies "at least two points"). */
 #ifndef NES_INPUT_TOUCH_POINTS
 #define NES_INPUT_TOUCH_POINTS 2
@@ -82,7 +82,90 @@ typedef struct {
     lv_point_t last;        /* last reported point (used on release) */
     int last_active;        /* last printed active-contact count (diag) */
 
+    /* Swipe detection (only indev #0's ctx uses it; it still parses every
+     * slot, so one tracker per slot keeps per-finger movement). */
+    int swipe_last_x[MT_MAX_SLOTS];
+    int swipe_last_y[MT_MAX_SLOTS];
+    int swipe_anchor_x[MT_MAX_SLOTS];   /* press-start position (raw panel px) */
+    int swipe_anchor_y[MT_MAX_SLOTS];
+    int swipe_sum_x[MT_MAX_SLOTS];
+    int swipe_sum_y[MT_MAX_SLOTS];
+    bool swipe_sent[MT_MAX_SLOTS];
+    bool swipe_was_pressed[MT_MAX_SLOTS];
 } mt_indev_ctx_t;
+
+/* Minimum travel (raw panel px) before a swipe is reported. */
+#define SWIPE_LIMIT 90
+
+/* Swipe callback (C linkage; set/cleared by the page via lv_nes_emu_set_swipe_cb). */
+static void (*g_swipe_cb)(lv_dir_t dir, int start_x, int start_y, void* user_data) = NULL;
+static void* g_swipe_ud = NULL;
+
+extern "C" void lv_nes_emu_set_swipe_cb(void (*cb)(lv_dir_t dir, int start_x, int start_y, void* user_data), void* user_data)
+{
+    g_swipe_cb = cb;
+    g_swipe_ud = user_data;
+}
+
+/* Track a single contact and fire the swipe callback when it travels far
+ * enough along one axis. Called from mt_read_cb for indev #0's context. */
+static void mt_swipe_process(mt_indev_ctx_t* c)
+{
+    for(int s = 0; s < MT_MAX_SLOTS; s++) {
+        bool pressed = (c->slot_state[s] == LV_INDEV_STATE_PRESSED);
+
+        if(!pressed) {
+            if(c->swipe_was_pressed[s]) {
+                c->swipe_sum_x[s] = 0;
+                c->swipe_sum_y[s] = 0;
+                c->swipe_sent[s] = false;
+                c->swipe_was_pressed[s] = false;
+            }
+            continue;
+        }
+
+        if(!c->swipe_was_pressed[s]) {
+            /* fresh press: anchor the starting position */
+            c->swipe_last_x[s] = c->slot_x[s];
+            c->swipe_last_y[s] = c->slot_y[s];
+            c->swipe_anchor_x[s] = c->slot_x[s];
+            c->swipe_anchor_y[s] = c->slot_y[s];
+            c->swipe_sum_x[s] = 0;
+            c->swipe_sum_y[s] = 0;
+            c->swipe_sent[s] = false;
+            c->swipe_was_pressed[s] = true;
+            continue;
+        }
+        if(c->swipe_sent[s]) continue;
+
+        int dx = c->slot_x[s] - c->swipe_last_x[s];
+        int dy = c->slot_y[s] - c->swipe_last_y[s];
+        c->swipe_last_x[s] = c->slot_x[s];
+        c->swipe_last_y[s] = c->slot_y[s];
+        if(dx == 0 && dy == 0) continue;
+
+        /* near-stationary: don't let slow drift accumulate */
+        if(dx > -3 && dx < 3 && dy > -3 && dy < 3) {
+            c->swipe_sum_x[s] = 0;
+            c->swipe_sum_y[s] = 0;
+            continue;
+        }
+
+        c->swipe_sum_x[s] += dx;
+        c->swipe_sum_y[s] += dy;
+
+        if(c->swipe_sum_x[s] > SWIPE_LIMIT || c->swipe_sum_x[s] < -SWIPE_LIMIT ||
+           c->swipe_sum_y[s] > SWIPE_LIMIT || c->swipe_sum_y[s] < -SWIPE_LIMIT) {
+            lv_dir_t dir;
+            if(LV_ABS(c->swipe_sum_x[s]) > LV_ABS(c->swipe_sum_y[s]))
+                dir = (c->swipe_sum_x[s] > 0) ? LV_DIR_RIGHT : LV_DIR_LEFT;
+            else
+                dir = (c->swipe_sum_y[s] > 0) ? LV_DIR_BOTTOM : LV_DIR_TOP;
+            c->swipe_sent[s] = true;
+            if(g_swipe_cb) g_swipe_cb(dir, c->swipe_anchor_x[s], c->swipe_anchor_y[s], g_swipe_ud);
+        }
+    }
+}
 
 static int mt_calib(int v, int in_min, int in_max, int out_min, int out_max)
 {
@@ -205,6 +288,10 @@ static void mt_read_cb(lv_indev_t * indev, lv_indev_data_t * data)
                 }
                 c->contact_idx = 0;
             }
+            /* Swipe detection runs once per completed frame so a fast
+             * press-move-release burst is seen frame by frame (a single
+             * end-of-read_cb pass would reset the tracker after the release). */
+            if(c->slot == 0) mt_swipe_process(c);
         }
     }
 

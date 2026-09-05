@@ -17,12 +17,14 @@ namespace Nes
 namespace Page
 {
     /**
-     * @brief Application model for eMP-nes.
-     *        Owns the NES lifecycle (select ROM -> emulate -> exit), the ROM
-     *        directory configuration and the LVGL thread that pumps
-     *        lv_timer_handler. The NES emulation itself runs in a separate
-     *        thread owned by Nes::Engine (see src/nes_port/nes_engine.h) so
-     *        the CPU interpreter never stalls the UI.
+     * @brief Application model for eMP-nes (mirrors eMP-gba).
+     *
+     * Lifecycle: ROM menu (or argv / EMP_NES_AUTOSTART direct launch) ->
+     * game -> back to menu -> ... The menu shows every *.nes under the ROM
+     * directory; the NES emulation itself runs in a separate thread owned
+     * by Nes::Engine so the CPU interpreter never stalls the UI. This class
+     * owns the LVGL thread that pumps lv_timer_handler and polls for the
+     * "hold SELECT to return to the menu" gesture.
      */
     class Model
     {
@@ -36,14 +38,21 @@ namespace Page
 
     private:
         void threadLvglHandler(void);
+        void launch(const std::string & romPath);
+        void backToMenu(void);
+        void stopGame(void);
         void onKey(int button, bool down);
+        static std::string resolveRomDir(void);
 
         std::thread _threadLvgl;             /* LVGL timer thread */
         std::atomic<bool> _exitFlag{false};
         std::function<void(void)> _exitCb;
 
-        std::string _romPath;
-        bool _romLoaded = false;
+        std::string _romDir;
+        int _volume = 100;                   /* kept for a future ALSA port */
+        bool _inGame = false;
+
+        uint32_t _selectTick = 0;            /* SELECT long-press tracker */
 
         std::unique_ptr<Nes::Engine> _engine;   /* NES emulation (own thread) */
         View _view;

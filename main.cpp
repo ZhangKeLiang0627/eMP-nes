@@ -8,7 +8,8 @@
  *
  * Usage:
  *   ./eMP_nes [/path/to/game.nes]
- * ROM fallback order: argv[1] > EMP_NES_AUTOSTART > first /mnt/UDISK/*.nes (top dir)
+ * Entry: argv[1] > env EMP_NES_AUTOSTART > ROM picker menu (env
+ * EMP_NES_ROM_DIR, else the first candidate dir holding *.nes).
  */
 #include "common_inc.h"
 #include "HAL.h"
