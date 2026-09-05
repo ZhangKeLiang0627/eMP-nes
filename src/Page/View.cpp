@@ -17,7 +17,28 @@ namespace Page
 /* NES button indices (== sn::Controller::Buttons == sf-shim key order). */
 enum : int { BTN_A = 0, BTN_B, BTN_SELECT, BTN_START, BTN_UP, BTN_DOWN, BTN_LEFT, BTN_RIGHT };
 
+namespace
+{
+void stylePad(lv_obj_t * btn, lv_color_t base)
+{
+    lv_obj_set_style_bg_color(btn, base, 0);
+    lv_obj_set_style_bg_opa(btn, LV_OPA_90, 0);
+    lv_obj_set_style_radius(btn, 10, 0);
+    lv_obj_set_style_border_width(btn, 0, 0);
+    lv_obj_set_style_shadow_width(btn, 0, 0);
+    lv_obj_set_style_bg_color(btn, lv_color_lighten(base, 60), LV_STATE_PRESSED);
+    lv_obj_set_style_bg_opa(btn, LV_OPA_90, LV_STATE_PRESSED);
+}
 
+void addLabel(lv_obj_t * btn, const char * text)
+{
+    lv_obj_t * label = lv_label_create(btn);
+    lv_label_set_text(label, text);
+    lv_obj_set_style_text_color(label, lv_color_white(), 0);
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+    lv_obj_center(label);
+}
+}
 
 /* Static bridge state (single View instance per app). */
 static KeyCb s_keyCb;

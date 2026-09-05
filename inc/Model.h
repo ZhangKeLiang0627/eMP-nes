@@ -4,9 +4,15 @@
 #include <thread>
 #include <atomic>
 #include <functional>
+#include <memory>
 
 #include "View.h"
 #include "common_inc.h"
+
+namespace Nes
+{
+    class Engine;
+}
 
 namespace Page
 {
@@ -39,6 +45,7 @@ namespace Page
         std::string _romPath;
         bool _romLoaded = false;
 
+        std::unique_ptr<Nes::Engine> _engine;   /* NES emulation (own thread) */
         View _view;
     };
 }
