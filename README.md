@@ -10,11 +10,12 @@ LVGL 线程 + 模拟线程、`View` 管控件。
 
 ```
 main.cpp                     入口：HAL::Init -> Model（常驻睡眠）
-src/HAL/                     硬件：fbdev(/dev/fb0) + 多点触控 evdev + 信号处理
-src/Page/                    Model（ROM 选择 + LVGL 线程 + 帧泵）/ View（游戏画面 + 虚拟按键）
+src/HAL/                     硬件：fbdev(/dev/fb0) + 多点触控 evdev（含 swipe 检测）+ 信号处理
+src/Page/                    Model（菜单-游戏生命周期 + LVGL 线程 + 帧泵）/ View（菜单页 + 游戏页 + overlay）
 src/nes_port/
   nes_engine.{h,cpp}         SimpleNES 核心嵌入（6502 解释 + PPU/APU，60fps 实时步进）
   nes_fb.h                   跨线程共享：RGB565 帧缓冲 + 虚拟键表
+  nes_font.{c,h}             运行时 CJK 字体（SmileySans.ttf + LVGL tiny_ttf，按需缓存）
   sf_shim_impl.cpp           sf::Keyboard / VirtualScreen 像素 sink 实现
 src/sf_shim/                 SFML 类型最小替身（Color/Keyboard/空头），核心零改动编译
 src/fs/lv_fs_posix.c         LVGL POSIX FS 驱动（注册 '/'）
@@ -23,6 +24,19 @@ libs/lvgl                    submodule v9.4.0
 libs/simplenes               submodule SimpleNES（上游原样，不改）
 cmake/build_for_t113s3.cmake eMP-toolchain 规范交叉编译工具链文件（引用即可）
 ```
+
+## 界面结构（镜像 eMP-gba）
+
+两个页面，页面画布均关闭滚动（拖动不会平移画面）：
+
+- **ROM 菜单页**：列出 ROM 目录下所有 `*.nes` + **常驻顶部栏**（截图 / 音量 / x退出）。
+- **游戏页**：NES 画面 2x 全屏 + 底部半透明虚拟键 + 手势控制的浮层：
+  - **下拉 / 上滑**：显示 / 隐藏顶部栏；
+  - **左滑 / 右滑**：显示 / 隐藏音量栏（0-100 竖滑条）；
+  - 顶部栏「x」退出返回 ROM 菜单（**按住 SELECT 2 秒**同样返回）；
+  - 「截图」把当前 /dev/fb0 480x480 画面存为 PPM 到 `/mnt/UDISK/screenshots/`（`EMP_NES_SHOT_DIR` 可改）并弹 toast。
+
+顶部栏 / 音量栏的滑入动画、样式、toast 动画均与 eMP-gba 同款（ease-out 400ms + 展开效果）。
 
 ### SimpleNES 如何无 SFML 嵌入
 
@@ -35,11 +49,11 @@ cmake/build_for_t113s3.cmake eMP-toolchain 规范交叉编译工具链文件（�
 | `APU` 绑定 `AudioPlayer::audio_queue` / `output_sample_rate` | `src/sf_shim/AudioPlayer.h`：同接口但不起音频设备，spsc 满则丢（后续可挂 ALSA 排空） |
 | APU 单元残留 `#include <SFML/...>` | 空头占位 |
 
-### 虚拟按键
+### 虚拟按键（游戏页底部）
 
-LVGL 界面底部虚拟按键（方向 + B/A，左上 START/SEL 浮签）按下/抬起直接写 `NesKey::state[]`，
-核心读 `Controller` 时经 shim 命中，与上游轮询语义一致；多点触控驱动（每触点一个 POINTER indev）
-保证「按住方向 + 同时按 A」可用。
+方向（左下）+ B/A（右下）+ START/SEL（中间小签）均为半透明覆盖层，按下/抬起直接写
+`NesKey::state[]`，核心读 `Controller` 时经 shim 命中，与上游轮询语义一致；多点触控驱动
+（每触点一个 POINTER indev）保证「按住方向 + 同时按 A」可用。
 
 ## 构建
 
@@ -60,11 +74,17 @@ cmake --build build -j
 ## 运行（T113 板）
 
 ```bash
-# ROM 来源优先级：命令行参数 > 环境变量 > /mnt/UDISK 下第一个 *.nes
-./eMP_nes /mnt/UDISK/roms/super_tilt_bro.nes
-# 或
+# 入口优先级：命令行参数 > EMP_NES_AUTOSTART > ROM 选择菜单
+./eMP_nes /root/nes_roms/super_tilt_bro.nes     # 直接进游戏
 EMP_NES_AUTOSTART=/mnt/UDISK/roms/nova.nes ./eMP_nes
+EMP_NES_ROM_DIR=/root/nes_roms ./eMP_nes        # 显示 ROM 菜单（无参启动）
 ```
+
+环境变量：
+- `EMP_NES_ROM_DIR`：菜单扫描目录（缺省按 /mnt/UDISK/nes_roms → /mnt/UDISK/roms → /root/nes_roms → /mnt/UDISK 探测）
+- `EMP_NES_VOLUME`：初始音量 0-100（默认 100）
+- `EMP_NES_SHOT_DIR`：截图保存目录（默认 /mnt/UDISK/screenshots）
+- `EMP_NES_DEMO_TOP` / `EMP_NES_DEMO_VOL`：启动即展开顶部栏 / 音量栏（演示 / 截图用）
 
 ## 板端实测（T113-S3, 2026-09-05）
 
@@ -84,8 +104,18 @@ EMP_NES_AUTOSTART=/mnt/UDISK/roms/nova.nes ./eMP_nes
 |---|---|---|---|
 | ![stb](docs/img/screens/20260905_t113_super_tilt_bro.png) | ![inv](docs/img/screens/20260905_t113_invaders.png) | ![nova](docs/img/screens/20260905_t113_nova_the_squirrel.png) | ![nestest](docs/img/screens/20260905_t113_nestest.png) |
 
-玩法：屏幕顶部 START/SEL 浮签、底部虚拟 D-pad + B/A（多点触控，可同时按住方向与 A/B）；
+玩法：底部虚拟 D-pad + B/A + START/SEL（多点触控，可同时按住方向与 A/B）；下拉顶部栏 /
+左滑音量栏 / x 退出回菜单 / 长按 SELECT 回菜单；截图按钮存 PPM。
 运行命令见上文「运行」一节（板端也可直接 `./eMP_nes /root/nes_roms/xxx.nes`）。
+
+## 界面组件截图（T113-S3, 2026-09-05）
+
+| ROM 选择菜单（常驻顶部栏）| 游戏页下拉顶部栏 | 游戏页左滑音量栏 |
+|---|---|---|
+| ![menu](docs/img/screens/20260905_ui_rom_menu.png) | ![topbar](docs/img/screens/20260905_ui_topbar_game.png) | ![volbar](docs/img/screens/20260905_ui_volbar_game.png) |
+
+（Invaders 运行中抓帧；顶部栏含 截图 / 音量 / x退出，音量栏为 0-100 竖滑条，均照 eMP-gba
+样式/动画。滑动展开关闭由手势驱动，本组截图通过 `EMP_NES_DEMO_TOP/VOL` 直接展开渲染。）
 
 ## 已知限制（SimpleNES 上游）
 

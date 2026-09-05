@@ -48,6 +48,11 @@ namespace Page
          * changed). Must run in the LVGL thread. */
         void notifyFrame(void);
 
+        /* Demo/self-test hooks (driven by EMP_NES_DEMO_TOP / EMP_NES_DEMO_VOL):
+         * force-open the top bar / volume bar on the current page. */
+        void openTopBar(void);
+        void openVolBar(void);
+
         void showError(const char * msg);
 
         /* Delete the current page (children + overlays). */

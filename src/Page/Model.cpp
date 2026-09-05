@@ -77,6 +77,11 @@ Model::Model(std::function<void(void)> exitCb, const std::string & romArg)
     if(_volume < 0) _volume = 0;
     if(_volume > 100) _volume = 100;
 
+    /* Demo/self-test hooks: force-open the top bar / volume bar so the
+     * overlays can be screenshotted without a touchscreen gesture. */
+    _demoTop = getenv("EMP_NES_DEMO_TOP") != nullptr;
+    _demoVol = getenv("EMP_NES_DEMO_VOL") != nullptr;
+
     LV_LOG_USER("[Model] ROM dir = %s, volume = %d", _romDir.c_str(), _volume);
 
     if(!romArg.empty()) {
@@ -93,6 +98,7 @@ Model::Model(std::function<void(void)> exitCb, const std::string & romArg)
             _view.showMenu(_romDir,
                            [this](const std::string & p) { this->launch(p); },
                            _exitCb);
+            if(_demoVol) _view.openVolBar();
         }
     }
 
@@ -138,6 +144,7 @@ void Model::launch(const std::string & romPath)
         _view.showMenu(_romDir,
                        [this](const std::string & p) { this->launch(p); },
                        _exitCb);
+        if(_demoVol) _view.openVolBar();
         _view.showError("ROM load failed - pick another");
         return;
     }
@@ -148,6 +155,9 @@ void Model::launch(const std::string & romPath)
     _view.showGame(romPath,
                    [this](int b, bool down) { onKey(b, down); },
                    [this]() { backToMenu(); });
+
+    if(_demoTop) _view.openTopBar();
+    if(_demoVol) _view.openVolBar();
 
     _engine->start();
     LV_LOG_USER("[Model] playing %s", romPath.c_str());

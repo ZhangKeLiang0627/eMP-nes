@@ -697,6 +697,16 @@ void View::notifyFrame(void)
     if(_gameImg) lv_obj_invalidate(_gameImg);
 }
 
+void View::openTopBar(void)
+{
+    if(_ov && !_ov->top_visible) top_bar_show(_ov);
+}
+
+void View::openVolBar(void)
+{
+    if(_ov && !_ov->vol_visible) vol_bar_show(_ov);
+}
+
 void View::showError(const char * msg)
 {
     if(!_screen) return;

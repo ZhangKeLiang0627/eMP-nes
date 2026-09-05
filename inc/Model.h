@@ -52,6 +52,9 @@ namespace Page
         int _volume = 100;                   /* kept for a future ALSA port */
         bool _inGame = false;
 
+        bool _demoTop = false;               /* EMP_NES_DEMO_TOP / _VOL demo hooks */
+        bool _demoVol = false;
+
         uint32_t _selectTick = 0;            /* SELECT long-press tracker */
 
         std::unique_ptr<Nes::Engine> _engine;   /* NES emulation (own thread) */
