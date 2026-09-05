@@ -588,6 +588,11 @@ void View::showMenu(const std::string & romDir, RomSelectedCb romCb, ExitCb exit
     lv_obj_t * list = lv_list_create(scr);
     lv_obj_set_size(list, LV_PCT(100), LV_PCT(100));
     lv_obj_center(list);
+    /* Square canvas: the list background must reach the screen corners with
+     * no rounded corners, otherwise the dark page bg shows through at the
+     * four corners. */
+    lv_obj_set_style_radius(list, 0, 0);
+    lv_obj_set_style_border_width(list, 0, 0);
     lv_obj_set_style_pad_top(list, 44, 0); /* leave room for the pinned top bar */
     lv_obj_set_style_pad_bottom(list, 12, 0);
 
