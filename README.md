@@ -66,6 +66,26 @@ cmake --build build -j
 EMP_NES_AUTOSTART=/mnt/UDISK/roms/nova.nes ./eMP_nes
 ```
 
+## 板端实测（T113-S3, 2026-09-05）
+
+交叉编译产物直接部署到板子验证（`/root/eMP_nes` + `/root/nes_roms/*.nes`，fb0 480x480 抓帧）：
+
+| 游戏 | ROM / Mapper | 结果 |
+|---|---|---|
+| Super Tilt Bro | super-tilt-bro.nes / NROM(0) | 稳定运行，标题有动画 |
+| Invaders | invaders.nes / NROM(0) | 稳定运行 |
+| Nova the Squirrel | novathesquirrel.nes / **MMC1 + CHR-RAM** | 稳定运行（mapper 1 真机验证）|
+| nestest | nestest.nes / NROM(0) | 稳定运行（CPU 测试屏）|
+
+截图（左→右：Super Tilt Bro / Invaders / Nova the Squirrel / nestest）：
+
+| | | | |
+|---|---|---|---|
+| ![stb](docs/img/screens/20260905_t113_super_tilt_bro.png) | ![inv](docs/img/screens/20260905_t113_invaders.png) | ![nova](docs/img/screens/20260905_t113_nova_the_squirrel.png) | ![nestest](docs/img/screens/20260905_t113_nestest.png) |
+
+玩法：屏幕顶部 START/SEL 浮签、底部虚拟 D-pad + B/A（多点触控，可同时按住方向与 A/B）；
+运行命令见上文「运行」一节（板端也可直接 `./eMP_nes /root/nes_roms/xxx.nes`）。
+
 ## 已知限制（SimpleNES 上游）
 
 - 仅支持 NTSC ROM（PAL 会被明确拒绝）。
