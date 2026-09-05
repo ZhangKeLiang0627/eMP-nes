@@ -16,6 +16,10 @@ namespace Page
      * Model::NesButton == sn::Controller::Buttons (A=0..Right=7). */
     using KeyCb = std::function<void(int, bool)>;
 
+    /* Per-page floating overlay state (top bar + volume bar), defined in
+     * View.cpp - only the pointer is needed here. */
+    struct Overlay;
+
     /**
      * @brief Presentation layer for eMP-nes (two pages, mirrors eMP-gba).
      *
@@ -38,7 +42,7 @@ namespace Page
 
         /* Game page. keyCb feeds the virtual pad; gameExitCb fires when the
          * in-game top bar 退出 is pressed (async, safe for object teardown). */
-        void showGame(KeyCb keyCb, GameExitCb gameExitCb);
+        void showGame(const std::string & romPath, KeyCb keyCb, GameExitCb gameExitCb);
 
         /* Call when the emulator finished a new frame (NesFb::frameSeq
          * changed). Must run in the LVGL thread. */
@@ -50,8 +54,6 @@ namespace Page
         void clearScreen(void);
 
     private:
-        struct Overlay;
-
         lv_obj_t * _screen = nullptr;
         lv_obj_t * _gameImg = nullptr;
         Overlay * _ov = nullptr;

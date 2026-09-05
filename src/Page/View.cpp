@@ -69,7 +69,7 @@ enum : int
 /* overlay state (one per page)                                        */
 /* ------------------------------------------------------------------ */
 
-struct View::Overlay
+struct Overlay
 {
     lv_obj_t * top_bar = nullptr;
     lv_obj_t * vol_bar = nullptr;
@@ -113,17 +113,17 @@ void nes_anim(lv_obj_t * obj, lv_anim_exec_xcb_t exec, int32_t from, int32_t to,
 }
 
 /* Overlay text font: SmileySans (CJK-capable) when available. */
-lv_font_t * ovl_font(int size)
+const lv_font_t * ovl_font(int size)
 {
     lv_font_t * f = nes_font_get(size);
-    return f ? f : &lv_font_montserrat_14;
+    return f ? f : (const lv_font_t *)&lv_font_montserrat_14;
 }
 
 /* ------------------------------------------------------------------ */
 /* floating bar show / hide (eMP-video / eMP-gba ease-out + expand)    */
 /* ------------------------------------------------------------------ */
 
-void top_bar_show(View::Overlay * ov)
+void top_bar_show(Overlay * ov)
 {
     ov->top_visible = true;
     const int w = NES_SCREEN_W * 9 / 10;
@@ -133,7 +133,7 @@ void top_bar_show(View::Overlay * ov)
              (NES_SCREEN_W - 20) / 2, (NES_SCREEN_W - w) / 2, OVL_ANIM_MS);
 }
 
-void top_bar_hide(View::Overlay * ov)
+void top_bar_hide(Overlay * ov)
 {
     ov->top_visible = false;
     const int w = NES_SCREEN_W * 9 / 10;
@@ -143,14 +143,14 @@ void top_bar_hide(View::Overlay * ov)
              (NES_SCREEN_W - w) / 2, (NES_SCREEN_W - 20) / 2, OVL_ANIM_MS);
 }
 
-void vol_bar_show(View::Overlay * ov)
+void vol_bar_show(Overlay * ov)
 {
     ov->vol_visible = true;
     nes_anim(ov->vol_bar, (lv_anim_exec_xcb_t)lv_obj_set_x, NES_SCREEN_W, OVL_VOL_BAR_X, OVL_ANIM_MS);
     nes_anim(ov->vol_bar, (lv_anim_exec_xcb_t)lv_obj_set_height, 30, OVL_VOL_BAR_H, OVL_ANIM_MS);
 }
 
-void vol_bar_hide(View::Overlay * ov)
+void vol_bar_hide(Overlay * ov)
 {
     ov->vol_visible = false;
     nes_anim(ov->vol_bar, (lv_anim_exec_xcb_t)lv_obj_set_x, OVL_VOL_BAR_X, NES_SCREEN_W, OVL_ANIM_MS);
@@ -324,8 +324,8 @@ lv_obj_t * vol_slider_create(lv_obj_t * parent, int value)
 
 void overlay_event_cb(lv_event_t * e)
 {
-    View::Overlay * ov = (View::Overlay *)lv_event_get_user_data(e);
-    lv_obj_t * btn = lv_event_get_current_target(e);
+    Overlay * ov = (Overlay *)lv_event_get_user_data(e);
+    lv_obj_t * btn = (lv_obj_t *)lv_event_get_current_target(e);
     if(ov == nullptr || btn == nullptr) return;
 
     const uintptr_t id = (uintptr_t)lv_obj_get_user_data(btn);
@@ -359,7 +359,7 @@ void overlay_event_cb(lv_event_t * e)
 
 void vol_slider_event_cb(lv_event_t * e)
 {
-    View::Overlay * ov = (View::Overlay *)lv_event_get_user_data(e);
+    Overlay * ov = (Overlay *)lv_event_get_user_data(e);
     if(ov == nullptr) return;
 
     if(lv_event_get_code(e) == LV_EVENT_VALUE_CHANGED) {
@@ -373,7 +373,7 @@ void vol_slider_event_cb(lv_event_t * e)
 /* game-page swipe handler (same gating as eMP-gba overlay) */
 void overlay_swipe_cb(lv_dir_t dir, int start_x, int start_y, void * user_data)
 {
-    View::Overlay * ov = (View::Overlay *)user_data;
+    Overlay * ov = (Overlay *)user_data;
     if(ov == nullptr) return;
 
     bool in_vol = (ov->vol_visible &&
@@ -400,8 +400,8 @@ void overlay_swipe_cb(lv_dir_t dir, int start_x, int start_y, void * user_data)
 
 void overlay_delete_cb(lv_event_t * e)
 {
-    View::Overlay * ov = (View::Overlay *)lv_event_get_user_data(e);
-    delete ov;
+    Overlay * ov = static_cast<Overlay *>(lv_event_get_user_data(e));
+    if(ov) delete ov;
 }
 
 int volume_default(void)
@@ -418,11 +418,11 @@ int volume_default(void)
 
 /* Build the top bar (pinned on menu, hidden on game) + volume bar + toast
  * wiring on `root`; registers/clears the global swipe callback. */
-View::Overlay * overlay_create(lv_obj_t * root, const char * title,
+Overlay * overlay_create(lv_obj_t * root, const char * title,
                                bool top_pinned, bool gesture_on,
                                std::function<void(void)> onExit)
 {
-    View::Overlay * ov = new View::Overlay();
+    Overlay * ov = new Overlay();
     ov->onExit = std::move(onExit);
 
     /* ---- top bar (90% width, #EEEEEE @90) ---- */
@@ -593,7 +593,7 @@ void View::showMenu(const std::string & romDir, RomSelectedCb romCb, ExitCb exit
         lv_obj_set_user_data(btn, (void *)(i + 1)); /* 1-based index */
         lv_obj_add_event_cb(btn, [](lv_event_t * e) {
             if(lv_event_get_code(e) != LV_EVENT_CLICKED) return;
-            lv_obj_t * obj = lv_event_get_current_target(e);
+            lv_obj_t * obj = (lv_obj_t *)lv_event_get_current_target(e);
             size_t idx = (size_t)lv_obj_get_user_data(obj);
             if(idx > 0 && idx <= s_romPaths.size() && s_romCb)
                 s_romCb(s_romPaths[idx - 1]);
