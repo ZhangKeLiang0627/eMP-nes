@@ -6,9 +6,9 @@
  *   2. env EMP_NES_AUTOSTART                    -> straight to the game page
  *   3. otherwise                                -> ROM picker menu page
  *
- * The menu scans the ROM directory (env EMP_NES_ROM_DIR, else the first
- * candidate directory that contains *.nes). Game -> menu: press 退出 in the
- * slide-down top bar or hold SELECT for 2 seconds.
+ * ROM picker directory: env EMP_NES_ROM_DIR, else the fixed convention
+ * /mnt/UDISK/roms/nes (siblings: /mnt/UDISK/roms/gba for eMP-gba). Game ->
+ * menu: press 退出 in the slide-down top bar or hold SELECT for 2 seconds.
  */
 #include "Model.h"
 #include "nes_engine.h"
@@ -18,7 +18,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
-#include <dirent.h>
 
 /* Swipe setter (input driver owns it); cleared on page teardown. */
 extern "C" void lv_nes_emu_set_swipe_cb(
@@ -27,42 +26,13 @@ extern "C" void lv_nes_emu_set_swipe_cb(
 
 using namespace Page;
 
-namespace
-{
-bool dirHasNes(const std::string & dir)
-{
-    DIR * d = opendir(dir.c_str());
-    if(!d) return false;
-    bool found = false;
-    struct dirent * ent;
-    while((ent = readdir(d)) != nullptr) {
-        const std::string name = ent->d_name;
-        if(name.size() > 4 && name.compare(name.size() - 4, 4, ".nes") == 0) {
-            found = true;
-            break;
-        }
-    }
-    closedir(d);
-    return found;
-}
-} /* namespace */
+/* Fixed ROM directory convention (mirrors eMP-gba's /mnt/UDISK/roms/gba). */
+static const char * const NES_ROM_DIR_DEFAULT = "/mnt/UDISK/roms/nes";
 
 std::string Model::resolveRomDir(void)
 {
     const char * env = getenv("EMP_NES_ROM_DIR");
-    if(env && env[0] && dirHasNes(env)) return env;
-
-    static const char * const candidates[] = {
-        "/mnt/UDISK/nes_roms",
-        "/mnt/UDISK/roms",
-        "/root/nes_roms",
-        "/mnt/UDISK",
-    };
-    for(const char * c : candidates) {
-        if(dirHasNes(c)) return c;
-    }
-    /* fall back to the env value (even if empty) so the menu can report it */
-    return (env && env[0]) ? env : "/mnt/UDISK/nes_roms";
+    return (env && env[0]) ? env : NES_ROM_DIR_DEFAULT;
 }
 
 Model::Model(std::function<void(void)> exitCb, const std::string & romArg)

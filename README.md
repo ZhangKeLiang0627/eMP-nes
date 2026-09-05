@@ -75,20 +75,20 @@ cmake --build build -j
 
 ```bash
 # 入口优先级：命令行参数 > EMP_NES_AUTOSTART > ROM 选择菜单
-./eMP_nes /root/nes_roms/super_tilt_bro.nes     # 直接进游戏
-EMP_NES_AUTOSTART=/mnt/UDISK/roms/nova.nes ./eMP_nes
-EMP_NES_ROM_DIR=/root/nes_roms ./eMP_nes        # 显示 ROM 菜单（无参启动）
+./eMP_nes /mnt/UDISK/roms/nes/super_tilt_bro.nes   # 直接进游戏
+EMP_NES_AUTOSTART=/mnt/UDISK/roms/nes/nova.nes ./eMP_nes
+./eMP_nes                                          # 显示 ROM 菜单（默认目录）
 ```
 
 环境变量：
-- `EMP_NES_ROM_DIR`：菜单扫描目录（缺省按 /mnt/UDISK/nes_roms → /mnt/UDISK/roms → /root/nes_roms → /mnt/UDISK 探测）
+- `EMP_NES_ROM_DIR`：菜单扫描目录，默认 **`/mnt/UDISK/roms/nes`**（GBA 放 `/mnt/UDISK/roms/gba`，NES 与 GBA 不混放）
 - `EMP_NES_VOLUME`：初始音量 0-100（默认 100）
 - `EMP_NES_SHOT_DIR`：截图保存目录（默认 /mnt/UDISK/screenshots）
 - `EMP_NES_DEMO_TOP` / `EMP_NES_DEMO_VOL`：启动即展开顶部栏 / 音量栏（演示 / 截图用）
 
 ## 板端实测（T113-S3, 2026-09-05）
 
-交叉编译产物直接部署到板子验证（`/root/eMP_nes` + `/root/nes_roms/*.nes`，fb0 480x480 抓帧）。
+交叉编译产物直接部署到板子验证（`/root/eMP_nes` + `/mnt/UDISK/roms/nes/*.nes`，fb0 480x480 抓帧）。
 显示：NES 原生 256x240，**2x 整数放大填满 480x480**（左右各裁 8px 过扫描，像素 1:4 无重采样）。
 
 | 游戏 | ROM / Mapper | 结果 |
@@ -106,7 +106,7 @@ EMP_NES_ROM_DIR=/root/nes_roms ./eMP_nes        # 显示 ROM 菜单（无参启�
 
 玩法：底部虚拟 D-pad + B/A + START/SEL（多点触控，可同时按住方向与 A/B）；下拉顶部栏 /
 左滑音量栏 / x 退出回菜单 / 长按 SELECT 回菜单；截图按钮存 PPM。
-运行命令见上文「运行」一节（板端也可直接 `./eMP_nes /root/nes_roms/xxx.nes`）。
+运行命令见上文「运行」一节（板端也可直接 `./eMP_nes /mnt/UDISK/roms/nes/xxx.nes`）。
 
 ## 界面组件截图（T113-S3, 2026-09-05）
 

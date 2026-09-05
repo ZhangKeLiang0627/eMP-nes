@@ -9,7 +9,7 @@
  * Usage:
  *   ./eMP_nes [/path/to/game.nes]
  * Entry: argv[1] > env EMP_NES_AUTOSTART > ROM picker menu (env
- * EMP_NES_ROM_DIR, else the first candidate dir holding *.nes).
+ * EMP_NES_ROM_DIR, else the fixed /mnt/UDISK/roms/nes directory).
  */
 #include "common_inc.h"
 #include "HAL.h"
