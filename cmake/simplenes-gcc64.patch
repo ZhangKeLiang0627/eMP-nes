@@ -1,0 +1,43 @@
+diff --git a/src/APU/APU.cpp b/src/APU/APU.cpp
+index 7f099bb..3c60797 100644
+--- a/src/APU/APU.cpp
++++ b/src/APU/APU.cpp
+@@ -285,22 +285,21 @@ Byte APU::readStatus()
+ 
+ FrameCounter APU::setup_frame_counter(IRQHandle& irq)
+ {
+-    return FrameCounter(
+-      {
+-        std::ref(pulse1.volume),
+-        std::ref(pulse1.sweep),
+-        std::ref(pulse1.length_counter),
+-
+-        std::ref(pulse2.volume),
+-        std::ref(pulse2.sweep),
+-        std::ref(pulse2.length_counter),
+-
+-        std::ref(triangle.length_counter),
+-        std::ref(triangle.linear_counter),
+-
+-        std::ref(noise.volume),
+-        std::ref(noise.length_counter),
+-      },
+-      irq);
++    /* eMP-nes GCC 6.4 compat (T113 musl toolchain): building the vector from
++     * std::ref(derived) needs reference_wrapper's cross-type converting
++     * constructor (libstdc++ P0357, C++20); GCC 6.4 libstdc++ lacks it.
++     * Cast every slot to its FrameClockable base first. */
++    std::vector<std::reference_wrapper<FrameClockable>> slots;
++    slots.push_back(std::ref(static_cast<FrameClockable&>(pulse1.volume)));
++    slots.push_back(std::ref(static_cast<FrameClockable&>(pulse1.sweep)));
++    slots.push_back(std::ref(static_cast<FrameClockable&>(pulse1.length_counter)));
++    slots.push_back(std::ref(static_cast<FrameClockable&>(pulse2.volume)));
++    slots.push_back(std::ref(static_cast<FrameClockable&>(pulse2.sweep)));
++    slots.push_back(std::ref(static_cast<FrameClockable&>(pulse2.length_counter)));
++    slots.push_back(std::ref(static_cast<FrameClockable&>(triangle.length_counter)));
++    slots.push_back(std::ref(static_cast<FrameClockable&>(triangle.linear_counter)));
++    slots.push_back(std::ref(static_cast<FrameClockable&>(noise.volume)));
++    slots.push_back(std::ref(static_cast<FrameClockable&>(noise.length_counter)));
++    return FrameCounter(std::move(slots), irq);
+ }
+ }

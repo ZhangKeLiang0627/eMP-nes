@@ -18,6 +18,20 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_C_FLAGS}")
 
 set(SIMPLE_NES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs/simplenes)
 
+# ---- SimpleNES core compatibility patches (idempotent) ----
+# The pinned upstream targets modern libstdc++; the T113 toolchain is GCC
+# 6.4.1 musl. Patches live in cmake/ and are applied to the submodule
+# worktree at configure time (the gitlink itself stays pristine).
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/scripts/apply-core-patches.sh AND EXISTS ${SIMPLE_NES_DIR}/src/APU/APU.cpp)
+    execute_process(
+        COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/scripts/apply-core-patches.sh ${SIMPLE_NES_DIR}
+        RESULT_VARIABLE PATCH_RESULT
+    )
+    if(NOT PATCH_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to apply SimpleNES compatibility patches")
+    endif()
+endif()
+
 # ---- Include paths ----
 # Order matters: src/sf_shim MUST come before ${SIMPLE_NES_DIR}/include so
 # the SimpleNES core picks up our sn::AudioPlayer stand-in ("AudioPlayer.h"
