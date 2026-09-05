@@ -68,7 +68,8 @@ EMP_NES_AUTOSTART=/mnt/UDISK/roms/nova.nes ./eMP_nes
 
 ## 板端实测（T113-S3, 2026-09-05）
 
-交叉编译产物直接部署到板子验证（`/root/eMP_nes` + `/root/nes_roms/*.nes`，fb0 480x480 抓帧）：
+交叉编译产物直接部署到板子验证（`/root/eMP_nes` + `/root/nes_roms/*.nes`，fb0 480x480 抓帧）。
+显示：NES 原生 256x240，**2x 整数放大填满 480x480**（左右各裁 8px 过扫描，像素 1:4 无重采样）。
 
 | 游戏 | ROM / Mapper | 结果 |
 |---|---|---|
