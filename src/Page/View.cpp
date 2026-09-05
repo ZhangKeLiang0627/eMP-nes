@@ -81,21 +81,22 @@ void View::createGame(KeyCb keyCb)
     lv_scr_load(scr);
     _screen = scr;
 
-    /* NES framebuffer image (RGB565 256x240, zoom 150% = 384x360). */
+    /* NES framebuffer image: 2x pre-scaled RGB565 512x480, center-cropped
+     * onto the 480x480 panel (16px NES overscan per side removed by the
+     * -16px offset; pixels stay 1:4, no resampling). */
     static lv_image_dsc_t s_dsc = {0};
     s_dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
     s_dsc.header.cf    = LV_COLOR_FORMAT_RGB565;
     s_dsc.header.flags = 0;
-    s_dsc.header.w     = NesFb::kWidth;
-    s_dsc.header.h     = NesFb::kHeight;
-    s_dsc.header.stride = NesFb::kWidth * 2;
-    s_dsc.data_size    = sizeof(uint16_t) * NesFb::kWidth * NesFb::kHeight;
-    s_dsc.data         = (const uint8_t *)NesFb::buffer;
+    s_dsc.header.w     = NesFb::kOutW;
+    s_dsc.header.h     = NesFb::kOutH;
+    s_dsc.header.stride = NesFb::kOutW * 2;
+    s_dsc.data_size    = sizeof(uint16_t) * NesFb::kOutW * NesFb::kOutH;
+    s_dsc.data         = (const uint8_t *)NesFb::fb2x;
 
     lv_obj_t * img = lv_image_create(scr);
     lv_image_set_src(img, &s_dsc);
-    lv_image_set_scale(img, 150); /* 1.5x -> 384x360 */
-    lv_obj_set_pos(img, (480 - 384) / 2, 0);
+    lv_obj_set_pos(img, -NesFb::kCropX, 0); /* center-crop to 480x480 */
     lv_obj_set_style_image_recolor_opa(img, 0, 0);
     _gameImg = img;
 

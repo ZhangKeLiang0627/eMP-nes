@@ -24,7 +24,12 @@ namespace sf
 }
 
 /* ---- framebuffer + key table storage ---- */
-namespace NesFb { uint16_t buffer[kWidth * kHeight]; volatile uint32_t frameSeq = 0; }
+namespace NesFb
+{
+    uint16_t buffer[kWidth * kHeight];
+    uint16_t fb2x[kOutW * kOutH];
+    volatile uint32_t frameSeq = 0;
+}
 namespace NesKey { volatile bool state[8] = { false, false, false, false, false, false, false, false }; }
 
 /* ---- sf::Keyboard (backs the NES buttons the core polls) ---- */
@@ -47,7 +52,19 @@ void sn::VirtualScreen::create(unsigned int width, unsigned int height,
 void sn::VirtualScreen::setPixel(std::size_t x, std::size_t y, sf::Color color)
 {
     if (x < NesFb::kWidth && y < NesFb::kHeight) {
-        NesFb::buffer[y * NesFb::kWidth + x] = NesFb::rgb565(color.r, color.g, color.b);
+        const uint16_t c = NesFb::rgb565(color.r, color.g, color.b);
+        NesFb::buffer[y * NesFb::kWidth + x] = c;
+
+        /* 2x integer pre-scale for the display framebuffer. */
+        const int x2 = (int)x * NesFb::kScale;
+        const int y2 = (int)y * NesFb::kScale;
+        const int row0 = y2 * NesFb::kOutW;
+        const int row1 = (y2 + 1) * NesFb::kOutW;
+        NesFb::fb2x[row0 + x2]     = c;
+        NesFb::fb2x[row0 + x2 + 1] = c;
+        NesFb::fb2x[row1 + x2]     = c;
+        NesFb::fb2x[row1 + x2 + 1] = c;
+
         if (x == (std::size_t)NesFb::kWidth - 1 && y == (std::size_t)NesFb::kHeight - 1) {
             NesFb::frameSeq++; /* full frame done */
         }

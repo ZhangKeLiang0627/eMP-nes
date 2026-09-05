@@ -20,8 +20,19 @@ namespace NesFb
     constexpr int kWidth  = 256;
     constexpr int kHeight = 240;
 
-    /* RGB565, row-major (written by src/nes_port/sf_shim_impl.cpp). */
+    /* Output scale: 2x integer zoom -> 512x480, centered on the 480x480
+     * panel by cropping 16px of NES overscan each side (pixels map 1:4,
+     * no resampling). */
+    constexpr int kScale  = 2;
+    constexpr int kOutW   = kWidth * kScale;    /* 512 */
+    constexpr int kOutH   = kHeight * kScale;   /* 480 */
+    constexpr int kCropX  = (kOutW - 480) / 2;  /* 16 px per side (8 NES px) */
+
+    /* RGB565, row-major, PPU-native 256x240 (written by the pixel sink). */
     extern uint16_t buffer[kWidth * kHeight];
+
+    /* RGB565 2x pre-scaled framebuffer fed straight to the LVGL image. */
+    extern uint16_t fb2x[kOutW * kOutH];
 
     /* Incremented once per completed NES frame (at pixel 255,239). */
     extern volatile uint32_t frameSeq;
